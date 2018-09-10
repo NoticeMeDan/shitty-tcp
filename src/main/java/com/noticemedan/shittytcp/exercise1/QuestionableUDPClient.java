@@ -1,4 +1,4 @@
-package com.noticemedan.shittytcp;
+package com.noticemedan.shittytcp.exercise1;
 
 import java.net.*;
 import java.io.*;
