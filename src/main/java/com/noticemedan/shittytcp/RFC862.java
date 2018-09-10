@@ -7,6 +7,7 @@ class RFC862 {
 		DatagramSocket serverSocket = new DatagramSocket(7007);
 		byte[] receiveData = new byte[1024];
 		byte[] sendData;
+
 		while(true) {
 			DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
 			serverSocket.receive(receivePacket);
