@@ -80,20 +80,57 @@ public class Estimator {
     }
 
     private void printResults() {
-        for (DatagramPacket msg: send) {
-            System.out.println(new String(msg.getData()));
-        }
-        System.out.println("---------------");
-        for (DatagramPacket msg: received) {
-            System.out.println(new String(msg.getData()));
-        }
+    	int duplicated = 0; int reordered = 0; int dropped = 0; int received = 0;
+    	/*
+		for(int i = 0; i<send.size(); i++) {
+			int num = Collections.frequency(received, send.get(i));
+			if (num == 1){
+				//Check for reorder or sent
+				sent++;
+			}
+			else if(num == 2){
+				duplicated++;
+			}
+			else{
+				dropped++;
+			}
+		}
 
-        //System.out.println("######## STATISTICS ########");
-        //System.out.println("Duplicates: " + duplicatePackets);
-        //System.out.println("Reordered: " + reorderedPackets);
-        //System.out.println("Discarded: " + discardedPackets);
-        //System.out.println("Packets sent: " + packetsSend);
-        //System.out.println("Packets received: " + packetsReceived);
+    	byte[] prevSent = new byte[0];
+    	byte[] prevRec  = new byte[1];
+    	byte[] currSent; byte[] currRec;
+
+
+
+		for(int i = 0; i<send.size(); i++){
+        	currSent = send.get(i).getData();
+        	currRec = received.get(i).getData();
+
+			if(Arrays.equals(currSent, currRec)){
+				sent++;
+			}
+			else if(Arrays.equals(currRec, prevRec)){
+				duplicated++;
+				sent--;
+			}
+			else if(Arrays.equals(currSent, prevRec) && Arrays.equals(prevSent, currRec)){
+				reordered++;
+			}
+			else {
+				if(i != 0)dropped++;
+			}
+			prevSent = currSent;
+			prevRec = currRec;
+		}
+		*/
+
+
+		System.out.println("######## STATISTICS ########");
+        System.out.println("Duplicates: " + duplicated);
+        System.out.println("Reordered: " + reordered);
+        System.out.println("Discarded: " + dropped);
+        System.out.println("Packets sent: " + send.size());
+        System.out.println("Packets received: " + received);
     }
 
     private void createRandomDatagrams() {
