@@ -43,6 +43,7 @@ public class Estimator {
         Runnable sender = () -> {
             try {
                 est.sendSocket.send(est.sendList.pop());
+				est.updateCount();
             } catch (Exception e) {
                 System.out.println("No more elements in list!");
             }
@@ -55,7 +56,7 @@ public class Estimator {
                     DatagramPacket reply = new DatagramPacket(buffer, buffer.length);
                     est.receiveSocket.receive(reply);
                     est.received.add(reply);
-                    est.updateCount();
+
                 } catch (SocketTimeoutException e) {
                     System.out.println("Socket timeout. Closing...");
                     break;
