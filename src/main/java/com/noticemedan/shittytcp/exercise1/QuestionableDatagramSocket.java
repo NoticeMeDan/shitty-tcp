@@ -54,4 +54,8 @@ public class QuestionableDatagramSocket extends DatagramSocket {
             this.isReordering = true;
         }
     }
+
+    public boolean isReorder(){
+    	return this.isReordering;
+	}
 }

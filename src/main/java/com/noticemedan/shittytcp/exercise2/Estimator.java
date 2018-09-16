@@ -20,13 +20,14 @@ public class Estimator {
     private DatagramSocket receiveSocket;
 
     // Count actions
-	int currentLength = 0;
-	int duplicatedSocket = 0; int reorderedSocket = 0; int droppedSocket = 0; int receivedSocket = 0;
+	private int currentLength, duplicatedSocket, reorderedSocket, droppedSocket, receivedSocket;
+
 
     public Estimator(int datagramSize, int numOfDatagrams){
         this.datagramSize = datagramSize > 60000 ? 60000 : datagramSize;
         this.numOfDatagrams = numOfDatagrams;
         this.received = new ArrayList<>();
+		this.currentLength = 0; this.duplicatedSocket = 0; this.reorderedSocket = 0; this.droppedSocket = 0; this.receivedSocket = 0;
         try {
             this.sendSocket = new QuestionableDatagramSocket();
             this.receiveSocket = new DatagramSocket(7007);
@@ -89,7 +90,12 @@ public class Estimator {
     	if (newCurrentSize  == this.currentLength) {
 			this.droppedSocket++;
 		} else if ((newCurrentSize  - this.currentLength) == 1 ){
-    		this.receivedSocket++;
+    		if (this.sendSocket.isReorder()) {
+    			this.reorderedSocket++;
+			} else {
+				this.receivedSocket++;
+			}
+
 		} else if (((newCurrentSize  - this.currentLength)) == 2){
     		this.duplicatedSocket++;
 		}
