@@ -2,159 +2,99 @@ package com.noticemedan.shittytcp.exercise2;
 
 import com.noticemedan.shittytcp.exercise1.QuestionableDatagramSocket;
 
-import java.io.IOException;
 import java.net.*;
 import java.util.*;
-import java.util.concurrent.*;
 
 
 public class Estimator {
-
     private int datagramSize, numOfDatagrams;
 
-    private ArrayList<DatagramPacket> send;
-    private LinkedList<DatagramPacket> sendList;
-    private ArrayList<DatagramPacket> received;
+    private DatagramPacket[] sendList; // This will be used to pop to add to receivedList
+    private ArrayList<Integer> receivedList; // A list of receivedList packets
 
     private QuestionableDatagramSocket sendSocket;
     private DatagramSocket receiveSocket;
 
     // Count actions
-	private int currentLength, duplicatedSocket, reorderedSocket, droppedSocket, receivedSocket;
-
+	private int currentLength, duplicatedCounter, reorderedCounter, droppedCounter, receivedCounter;
 
     public Estimator(int datagramSize, int numOfDatagrams){
-        this.datagramSize = datagramSize > 60000 ? 60000 : datagramSize;
-        this.numOfDatagrams = numOfDatagrams;
-        this.received = new ArrayList<>();
-		this.currentLength = 0; this.duplicatedSocket = 0; this.reorderedSocket = 0; this.droppedSocket = 0; this.receivedSocket = 0;
+		this.datagramSize = datagramSize > 60000 ? 60000 : datagramSize;
+		this.numOfDatagrams = numOfDatagrams;
+		this.receivedList = new ArrayList<>();
+
+    	this.createRandomDatagrams();
+
+		this.currentLength = 0; this.duplicatedCounter = 0; this.reorderedCounter = 0; this.droppedCounter = 0; this.receivedCounter = 0;
         try {
             this.sendSocket = new QuestionableDatagramSocket();
             this.receiveSocket = new DatagramSocket(7007);
         } catch (SocketException e) {
             e.printStackTrace();
         }
-    }
 
+		Thread send = new Thread(new Send());
+		Thread receive = new Thread(new Receive());
+
+		receive.start();
+        send.start();
+
+     	try{
+			receive.join();
+		} catch (Exception e){
+			System.out.println("Whoops oh no");
+		}
+		try {
+			this.receiveSocket.close();
+			this.sendSocket.close();
+		} catch (Exception e){
+			System.out.println("Couldn't close properly");
+		}
+
+		this.analyzeResult();
+    }
 
     public static void estimate(int datagramSize, int numOfDatagrams, int interval) {
         Estimator est = new Estimator(datagramSize, numOfDatagrams);
-        est.createRandomDatagrams();
 
-        Runnable sender = () -> {
-            try {
-                est.sendSocket.send(est.sendList.pop());
-				est.updateCount();
-            } catch (Exception e) {
-                System.out.println("No more elements in list!");
-            }
-        };
-
-        Runnable receiver = () -> {
-            while(true) {
-                try {
-                    byte[] buffer = new byte[est.datagramSize];
-                    DatagramPacket reply = new DatagramPacket(buffer, buffer.length);
-                    est.receiveSocket.receive(reply);
-                    est.received.add(reply);
-
-                } catch (SocketTimeoutException e) {
-                    System.out.println("Socket timeout. Closing...");
-                    break;
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-        };
-
-        //Open the receiver thread and start listening for Packets on the DatagramSocket.
-        Thread receiveThread = new Thread(receiver);
-        receiveThread.start();
-
-        //Start a Thread with an Executor Service that runs the packet-sending method with the given interval
-        ScheduledExecutorService sendScheduler = Executors.newScheduledThreadPool(1);
-        ScheduledFuture handler = sendScheduler.scheduleAtFixedRate(sender, interval, interval, TimeUnit.MILLISECONDS);
-        sendScheduler.schedule(() -> {
-        	handler.cancel(true);
-        	est.printResults();
-		   try {
-		   		receiveThread.join();   //Close the receive thread.
-		   } catch (InterruptedException e) { e.printStackTrace(); }
-
-	   	},interval * est.send.size(), TimeUnit.MILLISECONDS);
     }
 
-	private void updateCount() {
-    	int newCurrentSize = this.received.size();
-
-    	if (newCurrentSize  == this.currentLength) {
-			this.droppedSocket++;
-		} else if ((newCurrentSize  - this.currentLength) == 1 ){
-    		if (this.sendSocket.isReorder()) {
-    			this.reorderedSocket++;
-			} else {
-				this.receivedSocket++;
+    private void analyzeResult(){
+		for (Integer i = 0; i < this.receivedList.size() - 1 ; i++){
+			if (!this.receivedList.contains(i)){
+				this.droppedCounter++;
 			}
-
-		} else if (((newCurrentSize  - this.currentLength)) == 2){
-    		this.duplicatedSocket++;
+			if (count(this.receivedList, i) == 2){
+				this.duplicatedCounter++;
+			} else if (count(this.receivedList, i) == 1){
+				if (this.receivedList.get(i) > this.receivedList.get(i+1)){
+					this.reorderedCounter++;
+				} else {
+					this.receivedCounter++;
+				}
+			}
 		}
 
-    	this.currentLength = newCurrentSize;
+    	this.printResults();
+	}
+	private static double count (ArrayList<Integer> list, int val) {
+		int count = 0;
+		for (int i = 0; i < list.size(); i++) {
+			if (list.get(i) == val) {
+				count++;
+			}
+		}
+		return count;
 	}
 
 	private void printResults() {
-    	/*
-		for(int i = 0; i<send.size(); i++) {
-			int num = Collections.frequency(received, send.get(i));
-			if (num == 1){
-				//Check for reorder or sent
-				sent++;
-			}
-			else if(num == 2){
-				duplicated++;
-			}
-			else{
-				dropped++;
-			}
-		}
-
-    	byte[] prevSent = new byte[0];
-    	byte[] prevRec  = new byte[1];
-    	byte[] currSent; byte[] currRec;
-
-
-
-		for(int i = 0; i<send.size(); i++){
-        	currSent = send.get(i).getData();
-        	currRec = received.get(i).getData();
-
-			if(Arrays.equals(currSent, currRec)){
-				sent++;
-			}
-			else if(Arrays.equals(currRec, prevRec)){
-				duplicated++;
-				sent--;
-			}
-			else if(Arrays.equals(currSent, prevRec) && Arrays.equals(prevSent, currRec)){
-				reordered++;
-			}
-			else {
-				if(i != 0)dropped++;
-			}
-			prevSent = currSent;
-			prevRec = currRec;
-		}
-		*/
-
-
 		System.out.println("######## STATISTICS ########");
-        System.out.println("Duplicates: " + this.duplicatedSocket);
-        System.out.println("Reordered: " + this.reorderedSocket);
-        System.out.println("Discarded: " + this.droppedSocket);
-		System.out.println("Received: " + this.receivedSocket);
-        System.out.println("Packets sent: " + this.send.size());
-        System.out.println("Packets received: " + this.received.size());
+        System.out.println("Duplicates: " + this.duplicatedCounter);
+        System.out.println("Reordered: " + this.reorderedCounter);
+        System.out.println("Discarded: " + this.droppedCounter);
+		System.out.println("Received: " + this.receivedCounter);
+        System.out.println("Packets sent: " + this.sendList.length);
+        System.out.println("Packets receivedList: " + this.receivedList.size());
     }
 
     private void createRandomDatagrams() {
@@ -164,31 +104,59 @@ public class Estimator {
         } catch (UnknownHostException e) {
             e.printStackTrace();
         }
-        this.send = new ArrayList<>();
-        this.sendList = new LinkedList<>();
 
         if (this.datagramSize > 60000){
             throw new IllegalArgumentException("Please provide a datagram size less than 60.000");
         }
-        for (int i = 0; i < this.numOfDatagrams; i++) {
-            byte[] m = generateRandomByteArray(this.datagramSize);
-            DatagramPacket packet = new DatagramPacket(m, this.numOfDatagrams, aHost, 7007);
-            this.send.add(packet);
-            this.sendList.add(packet);
-        }
+        this.sendList = generateByteArray(datagramSize, numOfDatagrams, aHost);
     }
 
-    private byte[] generateRandomByteArray(int s){
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < s; i++) {
-            char c = (char)((int) ThreadLocalRandom.current().nextInt(50, 110 + 1));
-            sb.append(c);
-        }
-        return sb.toString().getBytes();
-    }
+    private DatagramPacket[] generateByteArray(int size, int numOfDatagrams, InetAddress host){
+    	DatagramPacket[] packets = new DatagramPacket[numOfDatagrams];
+    	for (int i = 0; i < numOfDatagrams; i++){
+    		byte[] sequenceNumber = ("" + i).getBytes();
+			byte[] message = new byte[size];
+
+			System.arraycopy(sequenceNumber, 0, message, 0, sequenceNumber.length);
+
+			DatagramPacket packet = new DatagramPacket(message, sequenceNumber.length, host, 7007);
+			packets[i] = packet;
+		}
+
+		return packets;
+
+	}
+
+	private class Send implements Runnable {
+		public void run() {
+			for(DatagramPacket msg: Estimator.this.sendList){
+				try {
+					Estimator.this.sendSocket.send(msg);
+				} catch (Exception e) { System.out.println("Exception at send thread..."); }
+			}
+		}
+	}
+
+	private class Receive implements Runnable {
+		public void run() {
+			while(true){
+				try {
+					Estimator.this.receiveSocket.setSoTimeout(5000);
+					byte[] buffer = new byte[1000]; // Hardcoded length right now
+					DatagramPacket reply = new DatagramPacket(buffer, buffer.length);
+					Estimator.this.receiveSocket.receive(reply);
+
+					Estimator.this.receivedList.add(Integer.parseInt(new String(Arrays.copyOfRange(reply.getData(), 0, reply.getLength()))));
+				} catch(SocketTimeoutException e) {
+					System.out.println("Socket timeout. Closing...");
+					break;
+				} catch(Exception e) { System.out.println("Exception at send thread..."); }
+			}
+		}
+	}
 
     public static void main(String args[]) {
-        estimate(20,20,100);
+        estimate(1000,1000,10);
     }
 
 }
