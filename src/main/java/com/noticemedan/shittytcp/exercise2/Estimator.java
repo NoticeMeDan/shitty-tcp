@@ -5,7 +5,6 @@ import com.noticemedan.shittytcp.exercise1.QuestionableDatagramSocket;
 import java.net.*;
 import java.util.*;
 
-
 public class Estimator {
     private int datagramSize, numOfDatagrams;
 
@@ -16,7 +15,7 @@ public class Estimator {
     private DatagramSocket receiveSocket;
 
     // Count actions
-	private int currentLength, duplicatedCounter, reorderedCounter, droppedCounter, receivedCounter;
+	private int duplicatedCounter, reorderedCounter, droppedCounter, receivedCounter;
 
     public Estimator(int datagramSize, int numOfDatagrams){
 		this.datagramSize = datagramSize > 60000 ? 60000 : datagramSize;
@@ -25,7 +24,7 @@ public class Estimator {
 
     	this.createRandomDatagrams();
 
-		this.currentLength = 0; this.duplicatedCounter = 0; this.reorderedCounter = 0; this.droppedCounter = 0; this.receivedCounter = 0;
+		this.duplicatedCounter = 0; this.reorderedCounter = 0; this.droppedCounter = 0; this.receivedCounter = 0;
         try {
             this.sendSocket = new QuestionableDatagramSocket();
             this.receiveSocket = new DatagramSocket(7007);
@@ -89,10 +88,10 @@ public class Estimator {
 
 	private void printResults() {
 		System.out.println("######## STATISTICS ########");
-        System.out.println("Duplicates: " + this.duplicatedCounter);
-        System.out.println("Reordered: " + this.reorderedCounter);
-        System.out.println("Discarded: " + this.droppedCounter);
+		System.out.println("Discarded: " + this.droppedCounter);
+		System.out.println("Duplicates: " + this.duplicatedCounter);
 		System.out.println("Received: " + this.receivedCounter);
+		System.out.println("Reordered: " + this.reorderedCounter);
         System.out.println("Packets sent: " + this.sendList.length);
         System.out.println("Packets receivedList: " + this.receivedList.size());
     }
@@ -122,9 +121,7 @@ public class Estimator {
 			DatagramPacket packet = new DatagramPacket(message, sequenceNumber.length, host, 7007);
 			packets[i] = packet;
 		}
-
 		return packets;
-
 	}
 
 	private class Send implements Runnable {
@@ -158,5 +155,4 @@ public class Estimator {
     public static void main(String args[]) {
         estimate(1000,1000,10);
     }
-
 }
